@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+
 	"production-api/internal/config"
 	"production-api/internal/handlers"
 	"production-api/internal/middleware"
-
-	"github.com/go-chi/chi/v5"
 )
 
 func main() {
@@ -66,12 +66,13 @@ func main() {
 		}
 	}()
 
-	// graceful shutdown handling
+	// create channel to listen for OS signals
 	quit := make(chan os.Signal, 1)
+	// listen for SIGINT (Ctrl+C) and SIGTERM (kill)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
-	slog.Info("shutting down server...")
+	sig := <-quit
+	slog.Info("signal received, starting shutdown", "signal", sig.String())
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -80,5 +81,5 @@ func main() {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}
 
-	slog.Info("server exited")
+	slog.Info("server exited , all connections closed")
 }
