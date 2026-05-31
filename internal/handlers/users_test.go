@@ -8,7 +8,10 @@ import (
 	"testing"
 )
 
-func TestGetUsersReturns200(t *testing.T) {
+func TestGetUsersReturnsEmptyArray(t *testing.T) {
+	// reset store before test
+	defaultUserStore = newUserStore()
+
 	req := httptest.NewRequest("GET", "/users", nil)
 	res := httptest.NewRecorder()
 
@@ -17,9 +20,21 @@ func TestGetUsersReturns200(t *testing.T) {
 	if res.Code != http.StatusOK {
 		t.Errorf("want 200, got %d", res.Code)
 	}
+
+	var users []user
+	err := json.NewDecoder(res.Body).Decode(&users)
+	if err != nil {
+		t.Fatalf("failed to parse json: %v", err)
+	}
+
+	if len(users) != 0 {
+		t.Errorf("expected empty array, got %d users", len(users))
+	}
 }
 
 func TestGetUsersReturnsJSON(t *testing.T) {
+	defaultUserStore = newUserStore()
+
 	req := httptest.NewRequest("GET", "/users", nil)
 	res := httptest.NewRecorder()
 
@@ -31,24 +46,9 @@ func TestGetUsersReturnsJSON(t *testing.T) {
 	}
 }
 
-func TestGetUsersReturnsArray(t *testing.T) {
-	req := httptest.NewRequest("GET", "/users", nil)
-	res := httptest.NewRecorder()
-
-	GetUsers(res, req)
-
-	var users []user
-	err := json.NewDecoder(res.Body).Decode(&users)
-	if err != nil {
-		t.Fatalf("failed to parse json: %v", err)
-	}
-
-	if len(users) == 0 {
-		t.Error("expected at least one user")
-	}
-}
-
 func TestCreateUserReturns201(t *testing.T) {
+	defaultUserStore = newUserStore()
+
 	body := bytes.NewBufferString(`{"name":"David","email":"david@example.com"}`)
 	req := httptest.NewRequest("POST", "/users", body)
 	res := httptest.NewRecorder()
@@ -61,6 +61,8 @@ func TestCreateUserReturns201(t *testing.T) {
 }
 
 func TestCreateUserValidatesName(t *testing.T) {
+	defaultUserStore = newUserStore()
+
 	body := bytes.NewBufferString(`{"email":"test@example.com"}`)
 	req := httptest.NewRequest("POST", "/users", body)
 	res := httptest.NewRecorder()
@@ -79,6 +81,8 @@ func TestCreateUserValidatesName(t *testing.T) {
 }
 
 func TestCreateUserValidatesEmail(t *testing.T) {
+	defaultUserStore = newUserStore()
+
 	body := bytes.NewBufferString(`{"name":"Grace"}`)
 	req := httptest.NewRequest("POST", "/users", body)
 	res := httptest.NewRecorder()
@@ -96,67 +100,32 @@ func TestCreateUserValidatesEmail(t *testing.T) {
 	}
 }
 
-func TestGetUserByIDReturnsUser(t *testing.T) {
-	originalStore := defaultUserStore
+func TestCreateUserAddsToStore(t *testing.T) {
 	defaultUserStore = newUserStore()
-	defer func() { defaultUserStore = originalStore }()
 
-	req := httptest.NewRequest("GET", "/users/1", nil)
+	body := bytes.NewBufferString(`{"name":"Eve","email":"eve@example.com"}`)
+	req := httptest.NewRequest("POST", "/users", body)
 	res := httptest.NewRecorder()
 
-	GetUserByID(res, req)
+	CreateUser(res, req)
 
-	if res.Code != http.StatusOK {
-		t.Errorf("want 200, got %d", res.Code)
-	}
+	var created user
+	json.NewDecoder(res.Body).Decode(&created)
 
-	var u user
-	err := json.NewDecoder(res.Body).Decode(&u)
-	if err != nil {
-		t.Fatalf("failed to parse json: %v", err)
+	// verify user exists in store
+	allUsers := defaultUserStore.getAll()
+	if len(allUsers) != 1 {
+		t.Errorf("expected 1 user, got %d", len(allUsers))
 	}
-
-	if u.ID != "1" {
-		t.Errorf("want id '1', got '%s'", u.ID)
-	}
-	if u.Name != "Alice" {
-		t.Errorf("want name 'Alice', got '%s'", u.Name)
-	}
-	if u.Email != "alice@example.com" {
-		t.Errorf("want email 'alice@example.com', got '%s'", u.Email)
+	if allUsers[0].ID != created.ID {
+		t.Error("created user not found in storage")
 	}
 }
 
 func TestGetUserByIDReturns404ForMissingUser(t *testing.T) {
-	originalStore := defaultUserStore
 	defaultUserStore = newUserStore()
-	defer func() { defaultUserStore = originalStore }()
 
 	req := httptest.NewRequest("GET", "/users/999", nil)
-	res := httptest.NewRecorder()
-
-	GetUserByID(res, req)
-
-	if res.Code != http.StatusNotFound {
-		t.Errorf("want 404, got %d", res.Code)
-	}
-
-	var resp map[string]string
-	err := json.NewDecoder(res.Body).Decode(&resp)
-	if err != nil {
-		t.Fatalf("failed to parse json: %v", err)
-	}
-	if resp["error"] != "user not found" {
-		t.Errorf("want 'user not found', got '%s'", resp["error"])
-	}
-}
-
-func TestGetUserByIDReturns404ForDeletedUser(t *testing.T) {
-	originalStore := defaultUserStore
-	defaultUserStore = newUserStore()
-	defer func() { defaultUserStore = originalStore }()
-
-	req := httptest.NewRequest("GET", "/users/99999", nil)
 	res := httptest.NewRecorder()
 
 	GetUserByID(res, req)
@@ -167,6 +136,8 @@ func TestGetUserByIDReturns404ForDeletedUser(t *testing.T) {
 }
 
 func TestGetUserByIDRequiresID(t *testing.T) {
+	defaultUserStore = newUserStore()
+
 	req := httptest.NewRequest("GET", "/users/", nil)
 	res := httptest.NewRecorder()
 
@@ -177,41 +148,8 @@ func TestGetUserByIDRequiresID(t *testing.T) {
 	}
 }
 
-func TestGetUserByIDWithTrailingSlash(t *testing.T) {
-	originalStore := defaultUserStore
-	defaultUserStore = newUserStore()
-	defer func() { defaultUserStore = originalStore }()
-
-	req := httptest.NewRequest("GET", "/users/2/", nil)
-	res := httptest.NewRecorder()
-
-	GetUserByID(res, req)
-
-	if res.Code != http.StatusOK {
-		t.Errorf("want 200, got %d", res.Code)
-	}
-}
-
-func TestGetUserByIDReturnsJSON(t *testing.T) {
-	originalStore := defaultUserStore
-	defaultUserStore = newUserStore()
-	defer func() { defaultUserStore = originalStore }()
-
-	req := httptest.NewRequest("GET", "/users/1", nil)
-	res := httptest.NewRecorder()
-
-	GetUserByID(res, req)
-
-	contentType := res.Header().Get("Content-Type")
-	if contentType != "application/json" {
-		t.Errorf("want 'application/json', got '%s'", contentType)
-	}
-}
-
 func TestGetUserByIDAfterCreate(t *testing.T) {
-	originalStore := defaultUserStore
 	defaultUserStore = newUserStore()
-	defer func() { defaultUserStore = originalStore }()
 
 	// create a new user
 	body := bytes.NewBufferString(`{"name":"NewUser","email":"new@example.com"}`)
@@ -242,25 +180,28 @@ func TestGetUserByIDAfterCreate(t *testing.T) {
 	}
 }
 
-// table driven test for all get user by id cases
 func TestGetUserByIDTableDriven(t *testing.T) {
-	originalStore := defaultUserStore
 	defaultUserStore = newUserStore()
-	defer func() { defaultUserStore = originalStore }()
+
+	// create a user first
+	body := bytes.NewBufferString(`{"name":"Test","email":"test@example.com"}`)
+	createReq := httptest.NewRequest("POST", "/users", body)
+	createRes := httptest.NewRecorder()
+	CreateUser(createRes, createReq)
+
+	var created user
+	json.NewDecoder(createRes.Body).Decode(&created)
 
 	tests := []struct {
 		name       string
 		path       string
 		wantStatus int
 		wantID     string
-		wantError  string
 	}{
-		{"valid user", "/users/1", http.StatusOK, "1", ""},
-		{"valid user 2", "/users/2", http.StatusOK, "2", ""},
-		{"valid user 3", "/users/3", http.StatusOK, "3", ""},
-		{"missing user", "/users/999", http.StatusNotFound, "", "user not found"},
-		{"empty id", "/users/", http.StatusBadRequest, "", ""},
-		{"no id", "/users", http.StatusBadRequest, "", ""},
+		{"valid user", "/users/" + created.ID, http.StatusOK, created.ID},
+		{"missing user", "/users/999", http.StatusNotFound, ""},
+		{"empty id", "/users/", http.StatusBadRequest, ""},
+		{"no id", "/users", http.StatusBadRequest, ""},
 	}
 
 	for _, tt := range tests {

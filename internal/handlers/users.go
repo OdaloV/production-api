@@ -20,20 +20,16 @@ type createUserRequest struct {
 }
 
 type userStore struct {
-	mu      sync.RWMutex
-	users   map[string]user
-	nextID  int
+	mu     sync.RWMutex
+	users  map[string]user
+	nextID int
 }
 
 func newUserStore() *userStore {
-	store := &userStore{
-		users:   make(map[string]user),
-		nextID:  4,
+	return &userStore{
+		users:  make(map[string]user),
+		nextID: 1,
 	}
-	store.users["1"] = user{ID: "1", Name: "Alice", Email: "alice@example.com"}
-	store.users["2"] = user{ID: "2", Name: "Bob", Email: "bob@example.com"}
-	store.users["3"] = user{ID: "3", Name: "Charlie", Email: "charlie@example.com"}
-	return store
 }
 
 func (s *userStore) getAll() []user {
@@ -114,7 +110,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetUserByID(w http.ResponseWriter, r *http.Request) {
-	// extract id from url path /users/{id}
 	path := strings.TrimSuffix(r.URL.Path, "/")
 	parts := strings.Split(path, "/")
 	if len(parts) < 3 {
@@ -132,7 +127,6 @@ func GetUserByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// find user in storage
 	user, found := defaultUserStore.getByID(id)
 	if !found {
 		w.Header().Set("Content-Type", "application/json")
@@ -141,7 +135,6 @@ func GetUserByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// return user as json
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(user)
