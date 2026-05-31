@@ -10,11 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	"production-api/internal/config"
+	"production-api/internal/handlers"
+	"production-api/internal/middleware"
 
-	"github.com/OdaloV/production/internal/config"
-	"github.com/OdaloV/production/internal/handlers"
-	"github.com/OdaloV/production/internal/middleware"
+	"github.com/go-chi/chi/v5"
 )
 
 func main() {
@@ -34,14 +34,14 @@ func main() {
 	r := chi.NewRouter()
 
 	// apply global middleware in order
-	r.Use(middleware.Recovery)                                                       // first - catches panics
-	r.Use(middleware.RequestID)                                                      // adds request id
-	r.Use(middleware.RealIP)                                                         // extracts real ip
-	r.Use(middleware.Logger)                                                         // logs requests
-	r.Use(middleware.Timeout(time.Duration(cfg.TimeoutSeconds) * time.Second))       // request timeout
+	r.Use(middleware.Recovery)                                                                   // first - catches panics
+	r.Use(middleware.RequestID)                                                                  // adds request id
+	r.Use(middleware.RealIP)                                                                     // extracts real ip
+	r.Use(middleware.Logger)                                                                     // logs requests
+	r.Use(middleware.Timeout(time.Duration(cfg.TimeoutSeconds) * time.Second))                   // request timeout
 	r.Use(middleware.RateLimit(cfg.RateLimit, time.Duration(cfg.RateWindowSeconds)*time.Second)) // rate limiting
-	r.Use(middleware.CORS(cfg.AllowedOrigins))                                       // cors headers
-	r.Use(middleware.Compress)                                                       // last - compresses response
+	r.Use(middleware.CORS(cfg.AllowedOrigins))                                                   // cors headers
+	r.Use(middleware.Compress)                                                                   // last - compresses response
 
 	// register routes
 	r.Get("/health", handlers.HealthCheck)
@@ -80,5 +80,5 @@ func main() {
 		log.Fatalf("server forced to shutdown: %v", err)
 	}
 
-	slog.Info("server exited gracefully")
+	slog.Info("server exited")
 }
