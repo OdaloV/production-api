@@ -15,8 +15,8 @@ func TestLoadWithDefaults(t *testing.T) {
 
 	cfg := Load()
 
-	if cfg.Port != "8080" {
-		t.Errorf("want port '8080', got '%s'", cfg.Port)
+	if cfg.Port != "8081" {
+		t.Errorf("want port '8081', got '%s'", cfg.Port)
 	}
 	if cfg.RateLimit != 100 {
 		t.Errorf("want rate limit 100, got %d", cfg.RateLimit)
