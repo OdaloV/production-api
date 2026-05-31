@@ -16,7 +16,7 @@ type Config struct {
 
 func Load() *Config {
 	return &Config{
-		Port:              getEnv("PORT", "8080"),
+		Port:              getEnv("PORT", "8081"),
 		RateLimit:         getEnvInt("RATE_LIMIT", 100),
 		RateWindowSeconds: getEnvInt("RATE_WINDOW_SECONDS", 60),
 		TimeoutSeconds:    getEnvInt("TIMEOUT_SECONDS", 30),
