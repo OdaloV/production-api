@@ -103,7 +103,7 @@ func TestRealIPWithEmptyHeaders(t *testing.T) {
 	wrapped := RealIP(handler)
 
 	req := httptest.NewRequest("GET", "/", nil)
-	req.RemoteAddr = "10.0.0.1:8080"
+	req.RemoteAddr = "10.0.0.1:8081"
 	res := httptest.NewRecorder()
 
 	wrapped.ServeHTTP(res, req)
